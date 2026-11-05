@@ -10,6 +10,21 @@
   ],
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
+  "forwardPorts": [3000, 5173, 5432],
+  "portsAttributes": {
+    "3000": {
+      "label": "Backend Express API",
+      "onAutoForward": "notify"
+    },
+    "5173": {
+      "label": "Frontend Vue App",
+      "onAutoForward": "openBrowser"
+    },
+    "5432": {
+      "label": "PostgreSQL Database",
+      "onAutoForward": "silent"
+    }
+  },
   "customizations": {
     "vscode": {
       "settings": {
@@ -25,6 +40,5 @@
       ]
     }
   },
-  "forwardPorts": [3000, 5173, 5432],
   "postCreateCommand": "npm install"
 }
