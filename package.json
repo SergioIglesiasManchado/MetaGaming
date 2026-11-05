@@ -1,0 +1,20 @@
+{
+  "name": "metagaming-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MetaGaming monorepo workspace for client and server",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev:server": "npm --workspace=server run dev",
+    "dev:client": "npm --workspace=client run dev",
+    "build:server": "npm --workspace=server run build",
+    "build:client": "npm --workspace=client run build",
+    "build": "npm run build:server && npm run build:client",
+    "test:server": "npm --workspace=server run test",
+    "test:client": "npm --workspace=client run test",
+    "test": "npm run test:server && npm run test:client"
+  }
+}
