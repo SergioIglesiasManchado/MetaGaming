@@ -4,7 +4,12 @@
     "../docker-compose.yml"
   ],
   "service": "devcontainer",
+  "runServices": [
+    "postgres",
+    "devcontainer"
+  ],
   "workspaceFolder": "/workspace",
+  "shutdownAction": "stopCompose",
   "customizations": {
     "vscode": {
       "settings": {
