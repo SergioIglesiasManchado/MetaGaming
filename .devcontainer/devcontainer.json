@@ -40,5 +40,6 @@
       ]
     }
   },
-  "postCreateCommand": "npm install"
+  "postCreateCommand": "npm install",
+  "postStartCommand": "nohup npm run dev > /workspace/.dev.log 2>&1 &"
 }
