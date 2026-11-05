@@ -1,9 +1,10 @@
 import { describe, it, expect, afterAll } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
-import { pool, checkDbConnection, getDbConfig } from '../src/db/index.js';
+import { pool, checkDbConnection, getDbConfig, query } from '../src/db/index.js';
+import { HealthService } from '../src/services/health.service.js';
 
-describe('Primary Database Connectivity & Health', () => {
+describe('Primary Database Connectivity & Service Layer', () => {
   afterAll(async () => {
     await pool.end();
   });
@@ -24,6 +25,19 @@ describe('Primary Database Connectivity & Health', () => {
     expect(result.ok).toBe(true);
     expect(result.database).toBe('metagaming');
     expect(result.timestamp).toBeDefined();
+  });
+
+  it('executes parameterized queries safely without errors', async () => {
+    const testValue = 'metagaming_core_test';
+    const result = await query<{ echo: string }>('SELECT $1::text as echo', [testValue]);
+    expect(result.rows[0]?.echo).toBe(testValue);
+  });
+
+  it('HealthService retrieves detailed database health and version information', async () => {
+    const dbHealth = await HealthService.getDatabaseHealth();
+    expect(dbHealth.ok).toBe(true);
+    expect(dbHealth.database).toBe('metagaming');
+    expect(dbHealth.version).toContain('PostgreSQL');
   });
 
   it('GET /health/db returns 200 with connected status', async () => {

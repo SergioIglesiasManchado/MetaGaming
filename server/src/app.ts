@@ -1,6 +1,8 @@
-import express, { type Application, type Request, type Response } from 'express';
+import express, { type Application } from 'express';
 import cors from 'cors';
-import { checkDbConnection } from './db/index.js';
+import { rootRouter } from './routes/index.js';
+import { notFoundHandler } from './middleware/notFound.js';
+import { errorHandler } from './middleware/errorHandler.js';
 
 export const createApp = (): Application => {
   const app = express();
@@ -8,38 +10,14 @@ export const createApp = (): Application => {
   app.use(cors());
   app.use(express.json());
 
-  // General server health check endpoint
-  app.get('/health', (_req: Request, res: Response) => {
-    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
-  });
+  // Mount application routes
+  app.use('/', rootRouter);
 
-  // Database reachability and status health check endpoint
-  app.get('/health/db', async (_req: Request, res: Response) => {
-    try {
-      const dbHealth = await checkDbConnection();
-      res.status(200).json({
-        status: 'ok',
-        database: 'connected',
-        name: dbHealth.database,
-        timestamp: dbHealth.timestamp
-      });
-    } catch (error) {
-      res.status(503).json({
-        status: 'error',
-        database: 'disconnected',
-        error: error instanceof Error ? error.message : 'Unknown database error'
-      });
-    }
-  });
+  // 404 handler for unmatched routes
+  app.use(notFoundHandler);
 
-  // Base API information
-  app.get('/api/v1', (_req: Request, res: Response) => {
-    res.status(200).json({
-      name: 'MetaGaming API',
-      version: '1.0.0',
-      description: 'Platform API for gamers, communities, chats, and collections'
-    });
-  });
+  // Centralized error handling middleware
+  app.use(errorHandler);
 
   return app;
 };

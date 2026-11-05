@@ -23,6 +23,16 @@ export const getDbConfig = () => {
 
 export const pool = new Pool(getDbConfig());
 
+/**
+ * Execute parameterized query safely using the connection pool
+ */
+export const query = async <T extends pg.QueryResultRow = any>(
+  text: string,
+  params?: unknown[]
+): Promise<pg.QueryResult<T>> => {
+  return pool.query<T>(text, params);
+};
+
 export interface DbHealthResult {
   ok: boolean;
   database: string;
@@ -30,7 +40,7 @@ export interface DbHealthResult {
 }
 
 export const checkDbConnection = async (): Promise<DbHealthResult> => {
-  const result = await pool.query<{ connected: number; current_time: string; db_name: string }>(
+  const result = await query<{ connected: number; current_time: string; db_name: string }>(
     'SELECT 1 as connected, NOW() as current_time, current_database() as db_name'
   );
 
