@@ -7,14 +7,23 @@ dotenv.config();
 const app = createApp();
 const PORT = process.env.PORT || 3000;
 
-const startServer = async () => {
-  try {
-    await initDb();
-    console.log('📦 Database schema initialized successfully');
-  } catch (err) {
-    console.warn('⚠️ Warning initializing database schema on startup:', err);
+let dbInitPromise: Promise<void> | null = null;
+export const ensureDbInitialized = async (): Promise<void> => {
+  if (!dbInitPromise) {
+    dbInitPromise = initDb()
+      .then(() => {
+        console.log('📦 Database schema initialized successfully');
+      })
+      .catch((err) => {
+        console.warn('⚠️ Warning initializing database schema on startup:', err);
+        dbInitPromise = null;
+      });
   }
+  return dbInitPromise;
+};
 
+const startServer = async () => {
+  await ensureDbInitialized();
   app.listen(PORT, () => {
     console.log(`🚀 MetaGaming server listening on port ${PORT}`);
   });
@@ -22,6 +31,9 @@ const startServer = async () => {
 
 if (!process.env.VERCEL) {
   startServer();
+} else {
+  // Trigger background initialization on Vercel cold start
+  ensureDbInitialized();
 }
 
 export default app;
