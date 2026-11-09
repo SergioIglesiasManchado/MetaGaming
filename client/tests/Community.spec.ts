@@ -28,7 +28,7 @@ describe('Community Frontend Component Battery (Normal, Edge & Error Cases)', ()
     it('normal case: renders author, date, comment content and multi-level nested replies', () => {
       const authStore = useAuthStore();
       authStore.setAuth(
-        { id: 1, username: 'tester', email: 'tester@test.com', role: 'user', created_at: '2026-01-01' },
+        { id: 1, username: 'tester', email: 'tester@test.com', role: 'user', is_admin: false, created_at: '2026-01-01' },
         'dummy_token'
       );
 
@@ -88,7 +88,7 @@ describe('Community Frontend Component Battery (Normal, Edge & Error Cases)', ()
     it('normal case: opens inline reply box when clicking Reply', async () => {
       const authStore = useAuthStore();
       authStore.setAuth(
-        { id: 1, username: 'tester', email: 'tester@test.com', role: 'user', created_at: '2026-01-01' },
+        { id: 1, username: 'tester', email: 'tester@test.com', role: 'user', is_admin: false, created_at: '2026-01-01' },
         'dummy_token'
       );
 
@@ -121,7 +121,7 @@ describe('Community Frontend Component Battery (Normal, Edge & Error Cases)', ()
     it('error case: shows error message when trying to submit empty reply', async () => {
       const authStore = useAuthStore();
       authStore.setAuth(
-        { id: 1, username: 'tester', email: 'tester@test.com', role: 'user', created_at: '2026-01-01' },
+        { id: 1, username: 'tester', email: 'tester@test.com', role: 'user', is_admin: false, created_at: '2026-01-01' },
         'dummy_token'
       );
 
@@ -321,7 +321,7 @@ describe('Community Frontend Component Battery (Normal, Edge & Error Cases)', ()
     it('edge case: empty questions state displays call to action', async () => {
       const authStore = useAuthStore();
       authStore.setAuth(
-        { id: 1, username: 'tester', email: 'tester@test.com', role: 'user', created_at: '2026-01-01' },
+        { id: 1, username: 'tester', email: 'tester@test.com', role: 'user', is_admin: false, created_at: '2026-01-01' },
         'dummy_token'
       );
 
