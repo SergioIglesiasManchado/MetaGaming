@@ -36,4 +36,10 @@ if (!process.env.VERCEL) {
   ensureDbInitialized();
 }
 
+// Support both ESM and CJS consumers on Vercel
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = app;
+  module.exports.default = app;
+}
+
 export default app;
