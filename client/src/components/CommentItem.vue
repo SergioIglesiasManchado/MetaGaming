@@ -99,7 +99,7 @@ const submitReply = async () => {
           </button>
           <button
             class="btn btn-primary"
-            :disabled="isSubmitting || !replyContent.trim()"
+            :disabled="isSubmitting"
             @click="submitReply"
           >
             {{ isSubmitting ? 'Replying...' : 'Submit Reply' }}
