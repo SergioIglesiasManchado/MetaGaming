@@ -26,6 +26,7 @@ const handleLogout = () => {
       </div>
 
       <div class="nav-links">
+        <router-link to="/games" class="nav-link">Videogames</router-link>
         <template v-if="isAuthenticated">
           <router-link to="/dashboard" class="nav-link">Dashboard</router-link>
           <span class="user-greeting">

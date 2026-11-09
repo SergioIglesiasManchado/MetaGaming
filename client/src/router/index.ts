@@ -3,6 +3,8 @@ import { useAuthStore } from '../stores/auth';
 import LoginView from '../views/LoginView.vue';
 import RegisterView from '../views/RegisterView.vue';
 import DashboardView from '../views/DashboardView.vue';
+import GamesView from '../views/GamesView.vue';
+import GameDetailView from '../views/GameDetailView.vue';
 
 export const routes = [
   {
@@ -10,7 +12,7 @@ export const routes = [
     name: 'home',
     redirect: () => {
       const authStore = useAuthStore();
-      return authStore.isAuthenticated ? '/dashboard' : '/login';
+      return authStore.isAuthenticated ? '/dashboard' : '/games';
     }
   },
   {
@@ -30,6 +32,16 @@ export const routes = [
     name: 'dashboard',
     component: DashboardView,
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/games',
+    name: 'games',
+    component: GamesView
+  },
+  {
+    path: '/games/:id',
+    name: 'game-detail',
+    component: GameDetailView
   }
 ];
 

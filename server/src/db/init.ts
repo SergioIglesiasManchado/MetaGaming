@@ -15,6 +15,32 @@ export const initDb = async (): Promise<void> => {
 
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+    CREATE TABLE IF NOT EXISTS games (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      description TEXT NOT NULL,
+      platforms TEXT[] NOT NULL DEFAULT '{}',
+      photos TEXT[] NOT NULL DEFAULT '{}',
+      created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_games_title ON games(LOWER(title));
+
+    CREATE TABLE IF NOT EXISTS reviews (
+      id SERIAL PRIMARY KEY,
+      game_id INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      rating NUMERIC(3, 1) NOT NULL CHECK (rating >= 0 AND rating <= 10),
+      comment TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+      CONSTRAINT unique_game_user_review UNIQUE (game_id, user_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_reviews_game_id ON reviews(game_id);
+    CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews(user_id);
   `;
 
   await query(createUsersTableQuery);
