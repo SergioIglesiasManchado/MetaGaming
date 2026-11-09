@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useGamesStore } from '../stores/games';
 import type { UserProfile } from '../types/auth';
+import { apiBaseUrl, getApiUrl } from '../config/api';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -25,13 +26,6 @@ const showBannedPanel = ref(false);
 const bannedUsers = ref<UserProfile[]>([]);
 const loadingBanned = ref(false);
 const banningUserId = ref<number | null>(null);
-
-const apiBaseUrl = import.meta.env.VITE_API_URL || '';
-
-const getApiUrl = (endpoint: string): URL => {
-  const base = apiBaseUrl || (typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'http://localhost:3000');
-  return new URL(endpoint.startsWith('/') ? endpoint : `/${endpoint}`, base);
-};
 
 const formattedDate = computed(() => {
   if (!user.value?.created_at) return 'Recently';
