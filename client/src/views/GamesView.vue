@@ -290,7 +290,16 @@ const navigateToDetail = (gameId: number) => {
               <span class="reviews-count">
                 💬 {{ game.reviews_count }} {{ game.reviews_count === 1 ? 'review' : 'reviews' }}
               </span>
-              <span class="view-link">View Reviews &amp; Score →</span>
+              <div class="card-actions">
+                <button
+                  class="btn-community-pill"
+                  title="Visit Community"
+                  @click.stop="router.push(`/games/${game.id}/community`)"
+                >
+                  👥 Community
+                </button>
+                <span class="view-link">View Reviews &amp; Score →</span>
+              </div>
             </div>
           </div>
         </div>
@@ -656,6 +665,33 @@ const navigateToDetail = (gameId: number) => {
 }
 
 .reviews-count { color: #94a3b8; }
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.btn-community-pill {
+  background: rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  color: #c084fc;
+  padding: 0.3rem 0.65rem;
+  min-height: 36px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn-community-pill:hover {
+  background: rgba(139, 92, 246, 0.35);
+  color: #fff;
+  border-color: #8b5cf6;
+}
+
 .view-link { color: #c084fc; font-weight: 600; }
 
 .btn {

@@ -126,15 +126,23 @@ const formatDate = (isoStr: string) => {
         <div class="game-meta">
           <div class="title-follow-bar">
             <h1 class="game-title">{{ gamesStore.currentGame.title }}</h1>
-            <button
-              class="btn-follow"
-              :class="{ following: gamesStore.isFollowingCurrentGame }"
-              :disabled="isTogglingFollow"
-              @click="handleToggleFollow"
-            >
-              <span class="icon">{{ gamesStore.isFollowingCurrentGame ? '★' : '☆' }}</span>
-              <span>{{ gamesStore.isFollowingCurrentGame ? 'Following' : 'Follow Game' }}</span>
-            </button>
+            <div class="header-btns">
+              <button
+                class="btn-community-nav"
+                @click="router.push(`/games/${gameId}/community`)"
+              >
+                👥 Community Hub
+              </button>
+              <button
+                class="btn-follow"
+                :class="{ following: gamesStore.isFollowingCurrentGame }"
+                :disabled="isTogglingFollow"
+                @click="handleToggleFollow"
+              >
+                <span class="icon">{{ gamesStore.isFollowingCurrentGame ? '★' : '☆' }}</span>
+                <span>{{ gamesStore.isFollowingCurrentGame ? 'Following' : 'Follow Game' }}</span>
+              </button>
+            </div>
           </div>
 
           <div class="platforms-list">
@@ -361,6 +369,36 @@ const formatDate = (isoStr: string) => {
   font-weight: 800;
   color: #f8fafc;
   line-height: 1.2;
+}
+
+.header-btns {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.btn-community-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  transition: all 0.2s ease;
+  min-height: 40px;
+}
+
+.btn-community-nav:hover {
+  background: rgba(59, 130, 246, 0.3);
+  border-color: #3b82f6;
+  color: #93c5fd;
+  transform: translateY(-1px);
 }
 
 .btn-follow {

@@ -5,6 +5,7 @@ import RegisterView from '../views/RegisterView.vue';
 import DashboardView from '../views/DashboardView.vue';
 import GamesView from '../views/GamesView.vue';
 import GameDetailView from '../views/GameDetailView.vue';
+import CommunityView from '../views/CommunityView.vue';
 
 export const routes = [
   {
@@ -42,6 +43,11 @@ export const routes = [
     path: '/games/:id',
     name: 'game-detail',
     component: GameDetailView
+  },
+  {
+    path: '/games/:id/community',
+    name: 'game-community',
+    component: CommunityView
   }
 ];
 

@@ -51,6 +51,15 @@ export class GameService {
     ]);
 
     const row = result.rows[0];
+
+    // Automatically create community for the game
+    await query(
+      `INSERT INTO communities (game_id, name, description)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (game_id) DO NOTHING`,
+      [row.id, row.title, row.description]
+    );
+
     return {
       ...row,
       average_rating: 0,

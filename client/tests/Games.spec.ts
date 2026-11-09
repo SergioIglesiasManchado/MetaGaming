@@ -75,7 +75,7 @@ describe('Videogames & Reviews Frontend Components', () => {
       expect(wrapper.find('input#game-title').exists()).toBe(true);
       expect(wrapper.find('input#game-platforms').exists()).toBe(true);
       expect(wrapper.find('textarea#game-desc').exists()).toBe(true);
-      expect(wrapper.find('textarea#game-photos').exists()).toBe(true);
+      expect(wrapper.find('.upload-drop-zone').exists()).toBe(true);
     });
 
     it('renders list of games with overall note badges and platform tags', () => {
