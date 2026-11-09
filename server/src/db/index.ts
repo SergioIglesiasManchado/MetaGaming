@@ -6,9 +6,30 @@ dotenv.config();
 const { Pool } = pg;
 
 export const getDbConfig = () => {
-  if (process.env.DATABASE_URL) {
+  // Support DATABASE_URL, POSTGRES_URL (Vercel Postgres), POSTGRES_PRISMA_URL (Prisma Postgres)
+  let connectionString =
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL_NON_POOLING;
+
+  if (connectionString) {
+    if (connectionString.startsWith('prisma+postgres://')) {
+      connectionString = connectionString.replace('prisma+postgres://', 'postgresql://');
+    }
+
+    const isLocal =
+      connectionString.includes('localhost') ||
+      connectionString.includes('127.0.0.1') ||
+      connectionString.includes('@postgres:5432');
+
+    const useSsl =
+      process.env.DATABASE_SSL === 'true' ||
+      (!isLocal && process.env.DATABASE_SSL !== 'false');
+
     return {
-      connectionString: process.env.DATABASE_URL
+      connectionString,
+      ssl: useSsl ? { rejectUnauthorized: false } : undefined
     };
   }
 

@@ -11,7 +11,7 @@ export const useCommunityStore = defineStore('community', () => {
   const loading = ref<boolean>(false);
   const error = ref<string | null>(null);
 
-  const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const apiBaseUrl = import.meta.env.VITE_API_URL || '';
 
   const fetchCommunityByGameId = async (gameId: number): Promise<Community | null> => {
     loading.value = true;

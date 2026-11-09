@@ -12,14 +12,19 @@ export const useGamesStore = defineStore('games', () => {
   const loading = ref<boolean>(false);
   const error = ref<string | null>(null);
 
-  const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const apiBaseUrl = import.meta.env.VITE_API_URL || '';
+
+  const getApiUrl = (endpoint: string): URL => {
+    const base = apiBaseUrl || (typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'http://localhost:3000');
+    return new URL(endpoint.startsWith('/') ? endpoint : `/${endpoint}`, base);
+  };
 
   const fetchGames = async (search?: string): Promise<Game[]> => {
     loading.value = true;
     error.value = null;
 
     try {
-      const url = new URL(`${apiBaseUrl}/api/v1/games`);
+      const url = getApiUrl('/api/v1/games');
       if (search && search.trim()) {
         url.searchParams.set('search', search.trim());
       }
