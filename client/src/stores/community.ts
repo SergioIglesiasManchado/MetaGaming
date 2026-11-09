@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { Community, CommunityPost, CommunityComment } from '../types/community';
 import { useAuthStore } from './auth';
+import { apiBaseUrl } from '../config/api';
 
 export const useCommunityStore = defineStore('community', () => {
   const currentCommunity = ref<Community | null>(null);
@@ -10,8 +11,6 @@ export const useCommunityStore = defineStore('community', () => {
   const currentComments = ref<CommunityComment[]>([]);
   const loading = ref<boolean>(false);
   const error = ref<string | null>(null);
-
-  const apiBaseUrl = import.meta.env.VITE_API_URL || '';
 
   const fetchCommunityByGameId = async (gameId: number): Promise<Community | null> => {
     loading.value = true;
