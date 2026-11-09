@@ -26,7 +26,12 @@ const bannedUsers = ref<UserProfile[]>([]);
 const loadingBanned = ref(false);
 const banningUserId = ref<number | null>(null);
 
-const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const apiBaseUrl = import.meta.env.VITE_API_URL || '';
+
+const getApiUrl = (endpoint: string): URL => {
+  const base = apiBaseUrl || (typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'http://localhost:3000');
+  return new URL(endpoint.startsWith('/') ? endpoint : `/${endpoint}`, base);
+};
 
 const formattedDate = computed(() => {
   if (!user.value?.created_at) return 'Recently';
@@ -43,7 +48,7 @@ const fetchUsers = async () => {
   searchError.value = null;
 
   try {
-    const url = new URL(`${apiBaseUrl}/api/v1/users`);
+    const url = getApiUrl('/api/v1/users');
     if (searchQuery.value.trim()) {
       url.searchParams.set('q', searchQuery.value.trim());
     }
