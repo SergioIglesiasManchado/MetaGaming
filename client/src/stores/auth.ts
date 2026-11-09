@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { UserProfile, AuthResponse } from '../types/auth';
+import { apiBaseUrl, getApiUrl } from '../config/api';
 
 const getStorageItem = (key: string): string | null => {
   try {
@@ -42,13 +43,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => Boolean(token.value && user.value));
   const isAdmin = computed(() => Boolean(user.value?.is_admin || user.value?.role === 'admin'));
-
-  const apiBaseUrl = import.meta.env.VITE_API_URL || '';
-
-  const getApiUrl = (endpoint: string): URL => {
-    const base = apiBaseUrl || (typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'http://localhost:3000');
-    return new URL(endpoint.startsWith('/') ? endpoint : `/${endpoint}`, base);
-  };
 
   const setAuth = (newUser: UserProfile, newToken: string) => {
     user.value = newUser;

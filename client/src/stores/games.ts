@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { Game, Review, CreateGamePayload, CreateReviewPayload } from '../types/game';
 import { useAuthStore } from './auth';
+import { apiBaseUrl, getApiUrl } from '../config/api';
 
 export const useGamesStore = defineStore('games', () => {
   const games = ref<Game[]>([]);
@@ -11,13 +12,6 @@ export const useGamesStore = defineStore('games', () => {
   const isFollowingCurrentGame = ref<boolean>(false);
   const loading = ref<boolean>(false);
   const error = ref<string | null>(null);
-
-  const apiBaseUrl = import.meta.env.VITE_API_URL || '';
-
-  const getApiUrl = (endpoint: string): URL => {
-    const base = apiBaseUrl || (typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'http://localhost:3000');
-    return new URL(endpoint.startsWith('/') ? endpoint : `/${endpoint}`, base);
-  };
 
   const fetchGames = async (search?: string): Promise<Game[]> => {
     loading.value = true;
