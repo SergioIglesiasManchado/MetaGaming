@@ -43,7 +43,12 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => Boolean(token.value && user.value));
   const isAdmin = computed(() => Boolean(user.value?.is_admin || user.value?.role === 'admin'));
 
-  const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const apiBaseUrl = import.meta.env.VITE_API_URL || '';
+
+  const getApiUrl = (endpoint: string): URL => {
+    const base = apiBaseUrl || (typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'http://localhost:3000');
+    return new URL(endpoint.startsWith('/') ? endpoint : `/${endpoint}`, base);
+  };
 
   const setAuth = (newUser: UserProfile, newToken: string) => {
     user.value = newUser;
@@ -123,7 +128,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   const fetchBannedUsers = async (searchQuery: string = ''): Promise<UserProfile[]> => {
     try {
-      const url = new URL(`${apiBaseUrl}/api/v1/users/banned`);
+      const url = getApiUrl('/api/v1/users/banned');
       if (searchQuery.trim()) {
         url.searchParams.set('q', searchQuery.trim());
       }
