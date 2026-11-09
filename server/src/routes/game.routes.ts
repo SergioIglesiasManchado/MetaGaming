@@ -2,15 +2,23 @@ import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { GameController } from '../controllers/game.controller.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.middleware.js';
 
 const router = Router();
 
-// Configure multer for disk storage
-const uploadsDir = path.resolve(process.cwd(), 'uploads');
+// Configure multer for disk storage (use /tmp on serverless environments like Vercel)
+const uploadsDir = process.env.VERCEL
+  ? path.resolve(os.tmpdir(), 'uploads')
+  : path.resolve(process.cwd(), 'uploads');
+
 if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+  try {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  } catch {
+    // Ignored in read-only filesystems
+  }
 }
 
 const storage = multer.diskStorage({

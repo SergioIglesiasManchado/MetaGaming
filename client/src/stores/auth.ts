@@ -34,6 +34,18 @@ const removeStorageItem = (key: string): void => {
   }
 };
 
+const parseJsonResponse = async (res: Response) => {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    if (!res.ok) {
+      throw new Error(`Server error (${res.status}): ${text.trim() || res.statusText}`);
+    }
+    throw new Error('Invalid JSON response received from server');
+  }
+};
+
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(getStorageItem('mg_token'));
   const rawUser = getStorageItem('mg_user');
@@ -69,7 +81,7 @@ export const useAuthStore = defineStore('auth', () => {
         body: JSON.stringify({ usernameOrEmail, password })
       });
 
-      const data = await response.json();
+      const data = await parseJsonResponse(response);
 
       if (!response.ok) {
         throw new Error(data.message || 'Login failed');
@@ -100,7 +112,7 @@ export const useAuthStore = defineStore('auth', () => {
         body: JSON.stringify({ username, email, password })
       });
 
-      const data = await response.json();
+      const data = await parseJsonResponse(response);
 
       if (!response.ok) {
         throw new Error(data.message || 'Registration failed');
