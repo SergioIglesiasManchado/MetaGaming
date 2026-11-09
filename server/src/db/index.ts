@@ -6,14 +6,64 @@ dotenv.config();
 const { Pool } = pg;
 
 export const getDbConfig = () => {
-  // Support DATABASE_URL, POSTGRES_URL (Vercel Postgres), POSTGRES_PRISMA_URL (Prisma Postgres)
-  let connectionString =
-    process.env.DATABASE_URL ||
-    process.env.POSTGRES_URL ||
-    process.env.POSTGRES_PRISMA_URL ||
-    process.env.POSTGRES_URL_NON_POOLING;
+  // Candidate environment variable keys in order of preference
+  const explicitKeys = [
+    'DATABASE_URL_POOLED',
+    'POSTGRES_PRISMA_URL',
+    'POSTGRES_URL',
+    'POSTGRES_URL_NON_POOLING',
+    'DATABASE_URL',
+    'DIRECT_URL'
+  ];
+
+  // Also collect any prefixed variants created by Prisma/Vercel (e.g. PRISMA_DATABASE_URL, PRISMA_POSTGRES_URL)
+  const envKeys = Object.keys(process.env);
+  const dynamicKeys = envKeys.filter((k) =>
+    k.endsWith('DATABASE_URL') ||
+    k.endsWith('DATABASE_URL_POOLED') ||
+    k.endsWith('POSTGRES_URL') ||
+    k.endsWith('PRISMA_URL') ||
+    k.endsWith('DIRECT_URL')
+  );
+
+  const allKeys = Array.from(new Set([...explicitKeys, ...dynamicKeys]));
+
+  // First pass: look for a remote cloud database URL (ignores docker/localhost URLs like @postgres:5432)
+  let connectionString: string | undefined;
+  let sourceKey: string | undefined;
+
+  for (const key of allKeys) {
+    const val = process.env[key];
+    if (val && typeof val === 'string' && val.trim() !== '') {
+      const isDockerOrLocal =
+        val.includes('@postgres:') ||
+        val.includes('@postgres/') ||
+        val.includes('localhost') ||
+        val.includes('127.0.0.1');
+
+      if (!isDockerOrLocal) {
+        connectionString = val.trim();
+        sourceKey = key;
+        break;
+      }
+    }
+  }
+
+  // Second pass: if no remote URL is found, allow local/docker connection strings
+  if (!connectionString) {
+    for (const key of allKeys) {
+      const val = process.env[key];
+      if (val && typeof val === 'string' && val.trim() !== '') {
+        connectionString = val.trim();
+        sourceKey = key;
+        break;
+      }
+    }
+  }
 
   if (connectionString) {
+    console.log(`🔌 Initializing database connection using environment variable: ${sourceKey}`);
+
     if (connectionString.startsWith('prisma+postgres://')) {
       connectionString = connectionString.replace('prisma+postgres://', 'postgresql://');
     }
@@ -21,7 +71,8 @@ export const getDbConfig = () => {
     const isLocal =
       connectionString.includes('localhost') ||
       connectionString.includes('127.0.0.1') ||
-      connectionString.includes('@postgres:5432');
+      connectionString.includes('@postgres:5432') ||
+      connectionString.includes('@postgres/');
 
     const useSsl =
       process.env.DATABASE_SSL === 'true' ||
@@ -33,10 +84,22 @@ export const getDbConfig = () => {
     };
   }
 
+  if (process.env.VERCEL) {
+    console.warn(
+      '⚠️ Running on Vercel but no remote database connection string was resolved. Checked: ' +
+        allKeys.join(', ')
+    );
+  }
+
+  const host =
+    process.env.VERCEL && process.env.POSTGRES_HOST === 'postgres'
+      ? 'localhost'
+      : process.env.POSTGRES_HOST || 'localhost';
+
   return {
     user: process.env.POSTGRES_USER || 'postgres',
     password: process.env.POSTGRES_PASSWORD || 'postgres',
-    host: process.env.POSTGRES_HOST || 'localhost',
+    host,
     port: Number(process.env.POSTGRES_PORT) || 5432,
     database: process.env.POSTGRES_DB || 'metagaming'
   };
