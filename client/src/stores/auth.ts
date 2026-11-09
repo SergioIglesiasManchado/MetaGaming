@@ -89,8 +89,7 @@ export const useAuthStore = defineStore('auth', () => {
   const register = async (
     username: string,
     email: string,
-    password: string,
-    role: 'user' | 'admin' = 'user'
+    password: string
   ): Promise<boolean> => {
     loading.value = true;
     error.value = null;
@@ -99,7 +98,7 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await fetch(`${apiBaseUrl}/api/v1/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, email, password, role })
+        body: JSON.stringify({ username, email, password })
       });
 
       const data = await response.json();

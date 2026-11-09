@@ -4,7 +4,7 @@ import { createApp } from '../src/app.js';
 import { pool, query } from '../src/db/index.js';
 import { initDb } from '../src/db/init.js';
 
-describe('Authentication API (/api/v1/auth)', () => {
+describe('Authentication API & Admin User Management', () => {
   const app = createApp();
   const testUser = {
     username: `gamer_${Date.now()}`,
@@ -12,30 +12,37 @@ describe('Authentication API (/api/v1/auth)', () => {
     password: 'SecurePassword123!'
   };
 
-  const testAdmin = {
-    username: `admin_${Date.now()}`,
-    email: `admin_${Date.now()}@example.com`,
-    password: 'AdminSuperPassword123!',
-    role: 'admin' as const
-  };
-
   let userToken: string;
   let adminToken: string;
+  let createdUserId: number;
 
   beforeAll(async () => {
     await initDb();
   });
 
   afterAll(async () => {
-    // Clean up test users
-    await query('DELETE FROM users WHERE username IN ($1, $2)', [
-      testUser.username,
-      testAdmin.username
-    ]);
+    // Clean up test users (keep default admin)
+    await query('DELETE FROM users WHERE username = $1', [testUser.username]);
     await pool.end();
   });
 
-  it('registers a regular user with encoded password and returns user profile and JWT', async () => {
+  it('default admin (admin : admin) exists and can log in with is_admin flagged true', async () => {
+    const res = await request(app).post('/api/v1/auth/login').send({
+      usernameOrEmail: 'admin',
+      password: 'admin'
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('ok');
+    expect(res.body.data.user.username).toBe('admin');
+    expect(res.body.data.user.role).toBe('admin');
+    expect(res.body.data.user.is_admin).toBe(true);
+    expect(res.body.data.token).toBeDefined();
+
+    adminToken = res.body.data.token;
+  });
+
+  it('registers a regular user with encoded password and strictly role="user"', async () => {
     const res = await request(app).post('/api/v1/auth/register').send(testUser);
 
     expect(res.status).toBe(201);
@@ -49,8 +56,9 @@ describe('Authentication API (/api/v1/auth)', () => {
     expect(res.body.data.token).toBeDefined();
 
     userToken = res.body.data.token;
+    createdUserId = res.body.data.user.id;
 
-    // Verify stored password in DB is securely hashed (starts with $2a$ or $2b$)
+    // Verify stored password in DB is securely hashed
     const dbCheck = await query('SELECT password_hash FROM users WHERE username = $1', [
       testUser.username
     ]);
@@ -59,15 +67,22 @@ describe('Authentication API (/api/v1/auth)', () => {
     expect(storedHash.startsWith('$2')).toBe(true);
   });
 
-  it('registers an admin user with is_admin flagged as true', async () => {
-    const res = await request(app).post('/api/v1/auth/register').send(testAdmin);
+  it('ignores any role in registration payload and forces role to "user"', async () => {
+    const attemptedAdminUser = {
+      username: `hacker_${Date.now()}`,
+      email: `hacker_${Date.now()}@example.com`,
+      password: 'SneakyPassword123!',
+      role: 'admin'
+    };
+
+    const res = await request(app).post('/api/v1/auth/register').send(attemptedAdminUser);
 
     expect(res.status).toBe(201);
-    expect(res.body.data.user.username).toBe(testAdmin.username);
-    expect(res.body.data.user.role).toBe('admin');
-    expect(res.body.data.user.is_admin).toBe(true);
+    expect(res.body.data.user.role).toBe('user');
+    expect(res.body.data.user.is_admin).toBe(false);
 
-    adminToken = res.body.data.token;
+    // Clean up
+    await query('DELETE FROM users WHERE username = $1', [attemptedAdminUser.username]);
   });
 
   it('rejects registration with duplicate username', async () => {
@@ -119,17 +134,6 @@ describe('Authentication API (/api/v1/auth)', () => {
     expect(res.body.data.token).toBeDefined();
   });
 
-  it('logs in admin and flags is_admin as true', async () => {
-    const res = await request(app).post('/api/v1/auth/login').send({
-      usernameOrEmail: testAdmin.username,
-      password: testAdmin.password
-    });
-
-    expect(res.status).toBe(200);
-    expect(res.body.data.user.role).toBe('admin');
-    expect(res.body.data.user.is_admin).toBe(true);
-  });
-
   it('rejects login with invalid password', async () => {
     const res = await request(app).post('/api/v1/auth/login').send({
       usernameOrEmail: testUser.username,
@@ -156,7 +160,7 @@ describe('Authentication API (/api/v1/auth)', () => {
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.data.username).toBe(testAdmin.username);
+    expect(res.body.data.username).toBe('admin');
     expect(res.body.data.is_admin).toBe(true);
     expect(res.body.data.role).toBe('admin');
   });
@@ -164,5 +168,61 @@ describe('Authentication API (/api/v1/auth)', () => {
   it('rejects GET /api/v1/auth/me without authorization token', async () => {
     const res = await request(app).get('/api/v1/auth/me');
     expect(res.status).toBe(401);
+  });
+
+  // Admin user search and permission management tests
+  it('prevents non-admin users from accessing GET /api/v1/users', async () => {
+    const res = await request(app)
+      .get('/api/v1/users')
+      .set('Authorization', `Bearer ${userToken}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.message).toContain('Admin access required');
+  });
+
+  it('allows admin to search users via GET /api/v1/users', async () => {
+    const res = await request(app)
+      .get(`/api/v1/users?q=${testUser.username}`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(res.body.data.length).toBeGreaterThanOrEqual(1);
+    const found = res.body.data.find((u: any) => u.username === testUser.username);
+    expect(found).toBeDefined();
+    expect(found.email).toBe(testUser.email);
+  });
+
+  it('prevents non-admin from updating user roles', async () => {
+    const res = await request(app)
+      .patch(`/api/v1/users/${createdUserId}/role`)
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({ role: 'admin' });
+
+    expect(res.status).toBe(403);
+  });
+
+  it('allows admin to grant admin permission to a user via PATCH /api/v1/users/:id/role', async () => {
+    const res = await request(app)
+      .patch(`/api/v1/users/${createdUserId}/role`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ role: 'admin' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.id).toBe(createdUserId);
+    expect(res.body.data.role).toBe('admin');
+    expect(res.body.data.is_admin).toBe(true);
+  });
+
+  it('allows admin to revoke admin permission from a user back to user role', async () => {
+    const res = await request(app)
+      .patch(`/api/v1/users/${createdUserId}/role`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ role: 'user' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.id).toBe(createdUserId);
+    expect(res.body.data.role).toBe('user');
+    expect(res.body.data.is_admin).toBe(false);
   });
 });

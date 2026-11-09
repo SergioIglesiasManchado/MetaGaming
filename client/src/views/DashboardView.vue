@@ -1,10 +1,21 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '../stores/auth';
+import type { UserProfile } from '../types/auth';
 
 const authStore = useAuthStore();
 const user = computed(() => authStore.user);
 const isAdmin = computed(() => authStore.isAdmin);
+
+// Admin user search & management state
+const searchQuery = ref('');
+const usersList = ref<UserProfile[]>([]);
+const loadingUsers = ref(false);
+const updatingUserId = ref<number | null>(null);
+const searchError = ref<string | null>(null);
+const searchSuccess = ref<string | null>(null);
+
+const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const formattedDate = computed(() => {
   if (!user.value?.created_at) return 'Recently';
@@ -13,6 +24,76 @@ const formattedDate = computed(() => {
     month: 'long',
     day: 'numeric'
   });
+});
+
+const fetchUsers = async () => {
+  if (!isAdmin.value || !authStore.token) return;
+  loadingUsers.value = true;
+  searchError.value = null;
+
+  try {
+    const url = new URL(`${apiBaseUrl}/api/v1/users`);
+    if (searchQuery.value.trim()) {
+      url.searchParams.set('q', searchQuery.value.trim());
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${authStore.token}`
+      }
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to search users');
+    }
+
+    usersList.value = data.data;
+  } catch (err) {
+    searchError.value = err instanceof Error ? err.message : 'Error fetching users';
+  } finally {
+    loadingUsers.value = false;
+  }
+};
+
+const setRole = async (targetUserId: number, newRole: 'user' | 'admin') => {
+  if (!authStore.token) return;
+  updatingUserId.value = targetUserId;
+  searchError.value = null;
+  searchSuccess.value = null;
+
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/users/${targetUserId}/role`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authStore.token}`
+      },
+      body: JSON.stringify({ role: newRole })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to update user role');
+    }
+
+    const updated = data.data as UserProfile;
+    const idx = usersList.value.findIndex((u) => u.id === targetUserId);
+    if (idx !== -1) {
+      usersList.value[idx] = updated;
+    }
+    searchSuccess.value = `Successfully updated @${updated.username}'s role to ${newRole === 'admin' ? 'Administrator' : 'Gamer'}!`;
+  } catch (err) {
+    searchError.value = err instanceof Error ? err.message : 'Error updating user role';
+  } finally {
+    updatingUserId.value = null;
+  }
+};
+
+onMounted(() => {
+  if (isAdmin.value) {
+    fetchUsers();
+  }
 });
 </script>
 
@@ -54,6 +135,84 @@ const formattedDate = computed(() => {
         <div class="stat-card">
           <span class="stat-label">Official Collections Auth</span>
           <span class="stat-value text-primary">Authorized</span>
+        </div>
+      </div>
+
+      <!-- User Search & Role Assignment Section -->
+      <div class="admin-card user-management-card" data-testid="user-management">
+        <div class="card-header">
+          <div>
+            <h3>👥 User Management & Permissions</h3>
+            <p>Search registered users and grant or revoke administrator privileges</p>
+          </div>
+          <span class="pill pill-admin">Access Control</span>
+        </div>
+
+        <div class="search-bar">
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search users by username or email..."
+            @keyup.enter="fetchUsers"
+            data-testid="user-search-input"
+          />
+          <button @click="fetchUsers" class="btn-search" :disabled="loadingUsers">
+            {{ loadingUsers ? 'Searching...' : 'Search' }}
+          </button>
+        </div>
+
+        <div v-if="searchError" class="alert-error" role="alert">{{ searchError }}</div>
+        <div v-if="searchSuccess" class="alert-success" role="alert">{{ searchSuccess }}</div>
+
+        <div v-if="loadingUsers" class="loading-state">
+          Searching registered users...
+        </div>
+
+        <div v-else-if="usersList.length === 0" class="empty-state">
+          No users found. Try searching with a different term.
+        </div>
+
+        <div v-else class="users-table-container">
+          <table class="users-table">
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="u in usersList" :key="u.id" data-testid="user-row">
+                <td><strong>{{ u.username }}</strong></td>
+                <td>{{ u.email }}</td>
+                <td>
+                  <span class="badge" :class="u.role === 'admin' ? 'badge-admin' : 'badge-user'">
+                    {{ u.role === 'admin' ? 'Admin' : 'Gamer' }}
+                  </span>
+                </td>
+                <td>
+                  <button
+                    v-if="u.role !== 'admin'"
+                    @click="setRole(u.id, 'admin')"
+                    class="btn-role-action btn-grant"
+                    :disabled="updatingUserId === u.id"
+                  >
+                    Grant Admin
+                  </button>
+                  <button
+                    v-else-if="u.id !== user?.id"
+                    @click="setRole(u.id, 'user')"
+                    class="btn-role-action btn-revoke"
+                    :disabled="updatingUserId === u.id"
+                  >
+                    Revoke Admin
+                  </button>
+                  <span v-else class="self-tag">(You)</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -256,6 +415,10 @@ const formattedDate = computed(() => {
   border-left: 5px solid #4f46e5;
 }
 
+.user-management-card {
+  border-left: 5px solid #10b981;
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -281,6 +444,124 @@ const formattedDate = computed(() => {
   font-size: 0.75rem;
   padding: 0.25rem 0.6rem;
   border-radius: 12px;
+}
+
+.search-bar {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.search-bar input {
+  flex: 1;
+  padding: 0.65rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.search-bar input:focus {
+  outline: none;
+  border-color: #6366f1;
+}
+
+.btn-search {
+  padding: 0.65rem 1.25rem;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-search:hover:not(:disabled) {
+  background: #4338ca;
+}
+
+.btn-search:disabled {
+  opacity: 0.6;
+}
+
+.alert-error {
+  background: #fee2e2;
+  color: #b91c1c;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.alert-success {
+  background: #dcfce7;
+  color: #15803d;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.users-table-container {
+  overflow-x: auto;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.95rem;
+}
+
+.users-table th, .users-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.users-table th {
+  background-color: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+}
+
+.btn-role-action {
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-grant {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+.btn-grant:hover:not(:disabled) {
+  background: #bbf7d0;
+}
+
+.btn-revoke {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+
+.btn-revoke:hover:not(:disabled) {
+  background: #fecaca;
+}
+
+.self-tag {
+  color: #64748b;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.loading-state, .empty-state {
+  padding: 1.5rem;
+  text-align: center;
+  color: #64748b;
 }
 
 .description {
@@ -324,10 +605,5 @@ const formattedDate = computed(() => {
 
 .diagnostics-list li {
   color: #334155;
-}
-
-.empty-state {
-  color: #64748b;
-  line-height: 1.6;
 }
 </style>

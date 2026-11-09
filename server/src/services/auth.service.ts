@@ -20,7 +20,7 @@ export interface RegisterInput {
   username: string;
   email: string;
   password: string;
-  role?: 'user' | 'admin';
+  role?: string;
 }
 
 export interface LoginInput {
@@ -80,7 +80,8 @@ export class AuthService {
       throw err;
     }
 
-    const normalizedRole = role === 'admin' ? 'admin' : 'user';
+    // Public registration only ever allows standard 'user' role
+    const normalizedRole: 'user' = 'user';
 
     // 2. Check for duplicate username or email
     const existing = await query<UserDbRow>(

@@ -33,9 +33,10 @@ describe('Auth Views & Dashboard Feature', () => {
     expect(wrapper.find('[data-testid="user-dashboard"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="admin-dashboard"]').exists()).toBe(false);
     expect(wrapper.text()).not.toContain('Administrator Control Center');
+    expect(wrapper.find('[data-testid="user-management"]').exists()).toBe(false);
   });
 
-  it('renders Admin dashboard with platform metrics and official collections management', () => {
+  it('renders Admin dashboard with platform metrics, user management, and official collections', () => {
     const authStore = useAuthStore();
     authStore.setAuth(
       {
@@ -56,7 +57,12 @@ describe('Auth Views & Dashboard Feature', () => {
     expect(wrapper.find('[data-testid="admin-dashboard"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="user-dashboard"]').exists()).toBe(false);
 
-    // Verify acceptance criterion: different dashboard with more info & ability to create public collections
+    // Verify User Management section
+    expect(wrapper.find('[data-testid="user-management"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="user-search-input"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('User Management & Permissions');
+
+    // Verify Official Collections section
     expect(wrapper.text()).toContain('Administrator Control Center');
     expect(wrapper.text()).toContain('Official & Public Thematic Collections');
     expect(wrapper.text()).toContain('Curate and publish official game collections visible to all users');
@@ -75,7 +81,7 @@ describe('Auth Views & Dashboard Feature', () => {
     expect(wrapper.find('button[type="submit"]').text()).toContain('Log In');
   });
 
-  it('renders RegisterView with registration fields and account type selector', () => {
+  it('renders RegisterView without role selector (strictly user role only)', () => {
     const wrapper = mount(RegisterView, {
       global: {
         plugins: [router]
@@ -86,6 +92,7 @@ describe('Auth Views & Dashboard Feature', () => {
     expect(wrapper.find('input#reg-email').exists()).toBe(true);
     expect(wrapper.find('input#reg-password').exists()).toBe(true);
     expect(wrapper.find('input#reg-confirm').exists()).toBe(true);
-    expect(wrapper.find('select#reg-role').exists()).toBe(true);
+    expect(wrapper.find('select#reg-role').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('Account Type');
   });
 });

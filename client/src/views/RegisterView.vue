@@ -10,7 +10,6 @@ const username = ref('');
 const email = ref('');
 const password = ref('');
 const confirmPassword = ref('');
-const role = ref<'user' | 'admin'>('user');
 const localError = ref<string | null>(null);
 
 const handleRegister = async () => {
@@ -29,8 +28,7 @@ const handleRegister = async () => {
   const success = await authStore.register(
     username.value,
     email.value,
-    password.value,
-    role.value
+    password.value
   );
 
   if (success) {
@@ -94,17 +92,6 @@ const handleRegister = async () => {
           required
           minlength="8"
         />
-      </div>
-
-      <div class="form-group role-selector">
-        <label for="reg-role">Account Type</label>
-        <select id="reg-role" v-model="role">
-          <option value="user">Gamer (Standard)</option>
-          <option value="admin">Platform Administrator</option>
-        </select>
-        <span class="role-hint" v-if="role === 'admin'">
-          🛡️ Admin account will gain access to administrative dashboards and official collections.
-        </span>
       </div>
 
       <button type="submit" class="btn-primary" :disabled="authStore.loading">
@@ -172,7 +159,7 @@ label {
   color: #334155;
 }
 
-input, select {
+input {
   padding: 0.75rem 1rem;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
@@ -180,16 +167,10 @@ input, select {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-input:focus, select:focus {
+input:focus {
   outline: none;
   border-color: #6366f1;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-}
-
-.role-hint {
-  font-size: 0.8rem;
-  color: #4338ca;
-  margin-top: 0.25rem;
 }
 
 .btn-primary {
