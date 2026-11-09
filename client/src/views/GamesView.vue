@@ -18,8 +18,20 @@ const newGame = ref({
   title: '',
   description: '',
   platformsInput: 'PC, PlayStation 5, Xbox Series X',
-  photosInput: ''
 });
+
+// Image upload state
+interface UploadPreview {
+  file: File;
+  previewUrl: string;
+  uploaded: boolean;
+  url?: string;
+}
+
+const fileInputRef = ref<HTMLInputElement | null>(null);
+const uploadPreviews = ref<UploadPreview[]>([]);
+const uploadedPhotoUrls = ref<string[]>([]);
+const isUploadingImages = ref(false);
 
 onMounted(async () => {
   await gamesStore.fetchGames();
@@ -27,6 +39,42 @@ onMounted(async () => {
 
 const handleSearch = async () => {
   await gamesStore.fetchGames(searchQuery.value);
+};
+
+const handleFileSelect = async (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  if (!input.files) return;
+
+  const files = Array.from(input.files);
+  isUploadingImages.value = true;
+
+  for (const file of files) {
+    const previewUrl = URL.createObjectURL(file);
+    const entry: UploadPreview = { file, previewUrl, uploaded: false };
+    uploadPreviews.value.push(entry);
+
+    try {
+      const url = await gamesStore.uploadGameImage(file);
+      entry.uploaded = true;
+      entry.url = url;
+      uploadedPhotoUrls.value.push(url);
+    } catch {
+      // keep entry in list but mark as failed; url remains undefined
+    }
+  }
+
+  isUploadingImages.value = false;
+  // reset the file input so the same file can be re-selected
+  if (fileInputRef.value) fileInputRef.value.value = '';
+};
+
+const removePreview = (index: number) => {
+  const entry = uploadPreviews.value[index];
+  URL.revokeObjectURL(entry.previewUrl);
+  if (entry.url) {
+    uploadedPhotoUrls.value = uploadedPhotoUrls.value.filter((u) => u !== entry.url);
+  }
+  uploadPreviews.value.splice(index, 1);
 };
 
 const handleCreateGame = async () => {
@@ -37,11 +85,6 @@ const handleCreateGame = async () => {
     .split(',')
     .map((p) => p.trim())
     .filter((p) => p.length > 0);
-
-  const photos = newGame.value.photosInput
-    .split(/[\n,]/)
-    .map((url) => url.trim())
-    .filter((url) => url.length > 0);
 
   if (!newGame.value.title.trim()) {
     gameFormError.value = 'Title is required';
@@ -64,16 +107,18 @@ const handleCreateGame = async () => {
       title: newGame.value.title.trim(),
       description: newGame.value.description.trim(),
       platforms,
-      photos
+      photos: uploadedPhotoUrls.value,
     });
 
     gameFormSuccess.value = `"${created.title}" successfully added to the catalog!`;
     newGame.value.title = '';
     newGame.value.description = '';
-    newGame.value.photosInput = '';
+    uploadPreviews.value.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+    uploadPreviews.value = [];
+    uploadedPhotoUrls.value = [];
     await gamesStore.fetchGames();
-  } catch (err: any) {
-    gameFormError.value = err.message || 'Error creating game';
+  } catch (err: unknown) {
+    gameFormError.value = err instanceof Error ? err.message : 'Error creating game';
   } finally {
     isSubmittingGame.value = false;
   }
@@ -88,7 +133,7 @@ const navigateToDetail = (gameId: number) => {
   <div class="games-container">
     <div class="header-section">
       <div class="header-content">
-        <h1>Videogames & Reviews</h1>
+        <h1>Videogames &amp; Reviews</h1>
         <p>Explore community-rated videogames, discover platforms, and read player reviews.</p>
       </div>
 
@@ -153,17 +198,46 @@ const navigateToDetail = (gameId: number) => {
           ></textarea>
         </div>
 
+        <!-- Image upload -->
         <div class="form-group">
-          <label for="game-photos">Screenshots / Photos URLs (comma or newline separated)</label>
-          <textarea
-            id="game-photos"
-            v-model="newGame.photosInput"
-            rows="2"
-            placeholder="https://example.com/screenshot1.jpg, https://example.com/screenshot2.jpg"
-          ></textarea>
+          <label>Screenshots / Photos</label>
+          <div
+            class="upload-drop-zone"
+            @click="fileInputRef?.click()"
+          >
+            <input
+              ref="fileInputRef"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              multiple
+              class="file-input-hidden"
+              @change="handleFileSelect"
+            />
+            <span v-if="!isUploadingImages" class="upload-icon">📷</span>
+            <span v-else class="upload-icon spinning">⏳</span>
+            <p v-if="!isUploadingImages">Click to upload screenshots (JPEG, PNG, WEBP, GIF · max 5 MB each)</p>
+            <p v-else>Uploading...</p>
+          </div>
+
+          <!-- Preview grid -->
+          <div v-if="uploadPreviews.length > 0" class="preview-grid">
+            <div
+              v-for="(preview, idx) in uploadPreviews"
+              :key="idx"
+              class="preview-item"
+              :class="{ 'uploading': !preview.uploaded }"
+            >
+              <img :src="preview.previewUrl" :alt="`Screenshot ${idx + 1}`" class="preview-img" />
+              <div class="preview-overlay">
+                <span v-if="preview.uploaded" class="preview-status ok">✓</span>
+                <span v-else class="preview-status pending">⏳</span>
+                <button type="button" class="preview-remove" @click.stop="removePreview(idx)">✕</button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <button type="submit" class="btn btn-accent" :disabled="isSubmittingGame">
+        <button type="submit" class="btn btn-accent" :disabled="isSubmittingGame || isUploadingImages">
           {{ isSubmittingGame ? 'Adding Game...' : 'Add Videogame to Catalog' }}
         </button>
       </form>
@@ -192,7 +266,7 @@ const navigateToDetail = (gameId: number) => {
               :alt="game.title"
               class="thumbnail-img"
               loading="lazy"
-              @error="(e: any) => e.target.style.display = 'none'"
+              @error="(e: Event) => ((e.target as HTMLImageElement).style.display = 'none')"
             />
             <div class="thumbnail-placeholder">🎮</div>
             <div class="score-badge" :class="{ 'has-score': game.reviews_count > 0 }">
@@ -216,7 +290,7 @@ const navigateToDetail = (gameId: number) => {
               <span class="reviews-count">
                 💬 {{ game.reviews_count }} {{ game.reviews_count === 1 ? 'review' : 'reviews' }}
               </span>
-              <span class="view-link">View Reviews & Score →</span>
+              <span class="view-link">View Reviews &amp; Score →</span>
             </div>
           </div>
         </div>
@@ -258,6 +332,7 @@ const navigateToDetail = (gameId: number) => {
 .search-bar {
   display: flex;
   gap: 0.75rem;
+  width: 100%;
   max-width: 600px;
 }
 
@@ -327,7 +402,7 @@ const navigateToDetail = (gameId: number) => {
 
 .flex-2 {
   flex: 1;
-  min-width: 280px;
+  min-width: 260px;
 }
 
 .form-group {
@@ -360,9 +435,113 @@ const navigateToDetail = (gameId: number) => {
   border-color: #8b5cf6;
 }
 
+/* Upload zone */
+.upload-drop-zone {
+  border: 2px dashed rgba(139, 92, 246, 0.4);
+  border-radius: 10px;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.upload-drop-zone:hover {
+  border-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.05);
+}
+
+.file-input-hidden {
+  display: none;
+}
+
+.upload-icon {
+  font-size: 2rem;
+}
+
+.spinning {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Preview grid */
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.preview-item {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  aspect-ratio: 16/9;
+  border: 2px solid rgba(148, 163, 184, 0.2);
+}
+
+.preview-item.uploading {
+  opacity: 0.6;
+}
+
+.preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.preview-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 0.3rem;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 60%);
+}
+
+.preview-status {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+}
+
+.preview-status.ok {
+  background: rgba(34, 197, 94, 0.8);
+  color: #fff;
+}
+
+.preview-status.pending {
+  background: rgba(251, 191, 36, 0.8);
+  color: #000;
+}
+
+.preview-remove {
+  background: rgba(239, 68, 68, 0.85);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.3rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+/* Catalog */
 .games-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.5rem;
 }
 
@@ -421,19 +600,9 @@ const navigateToDetail = (gameId: number) => {
   z-index: 2;
 }
 
-.score-badge.has-score .star {
-  color: #fbbf24;
-}
-
-.score-badge.has-score .note {
-  color: #f8fafc;
-  font-size: 1.1rem;
-}
-
-.score-badge .scale {
-  font-size: 0.75rem;
-  color: #94a3b8;
-}
+.score-badge.has-score .star { color: #fbbf24; }
+.score-badge.has-score .note { color: #f8fafc; font-size: 1.1rem; }
+.score-badge .scale { font-size: 0.75rem; color: #94a3b8; }
 
 .game-info {
   padding: 1.25rem;
@@ -443,7 +612,7 @@ const navigateToDetail = (gameId: number) => {
 }
 
 .game-title {
-  font-size: 1.25rem;
+  font-size: 1.2rem;
   font-weight: 700;
   color: #f8fafc;
   margin-bottom: 0.5rem;
@@ -486,20 +655,15 @@ const navigateToDetail = (gameId: number) => {
   font-size: 0.85rem;
 }
 
-.reviews-count {
-  color: #94a3b8;
-}
-
-.view-link {
-  color: #c084fc;
-  font-weight: 600;
-}
+.reviews-count { color: #94a3b8; }
+.view-link { color: #c084fc; font-weight: 600; }
 
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0.75rem 1.4rem;
+  min-height: 44px;
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
@@ -507,28 +671,11 @@ const navigateToDetail = (gameId: number) => {
   transition: all 0.2s ease;
 }
 
-.btn-primary {
-  background: #3b82f6;
-  color: #fff;
-}
-
-.btn-primary:hover {
-  background: #2563eb;
-}
-
-.btn-accent {
-  background: #8b5cf6;
-  color: #fff;
-}
-
-.btn-accent:hover {
-  background: #7c3aed;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+.btn-primary { background: #3b82f6; color: #fff; }
+.btn-primary:hover { background: #2563eb; }
+.btn-accent { background: #8b5cf6; color: #fff; }
+.btn-accent:hover { background: #7c3aed; }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .alert {
   padding: 0.85rem 1rem;
@@ -555,8 +702,39 @@ const navigateToDetail = (gameId: number) => {
   color: #94a3b8;
 }
 
-.empty-state h3 {
-  color: #f1f5f9;
-  margin-bottom: 0.5rem;
+.empty-state h3 { color: #f1f5f9; margin-bottom: 0.5rem; }
+
+.loading-state {
+  text-align: center;
+  padding: 3rem;
+  color: #94a3b8;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .games-container {
+    padding: 1.5rem 1rem;
+  }
+
+  .header-content h1 {
+    font-size: 1.75rem;
+  }
+
+  .search-bar {
+    max-width: 100%;
+    flex-direction: column;
+  }
+
+  .games-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-row {
+    flex-direction: column;
+  }
+
+  .flex-2 {
+    min-width: 100%;
+  }
 }
 </style>

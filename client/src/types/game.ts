@@ -6,6 +6,7 @@ export interface Game {
   photos: string[];
   average_rating: number;
   reviews_count: number;
+  is_following?: boolean;
   created_at: string;
   updated_at: string;
 }

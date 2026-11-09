@@ -216,4 +216,60 @@ export class GameService {
       }
     };
   }
+
+  public static async followGame(gameId: number, userId: number): Promise<boolean> {
+    const game = await this.getGameById(gameId);
+    if (!game) {
+      const error = new Error('Game not found');
+      (error as any).statusCode = 404;
+      throw error;
+    }
+
+    await query(
+      `INSERT INTO game_follows (user_id, game_id)
+       VALUES ($1, $2)
+       ON CONFLICT (user_id, game_id) DO NOTHING`,
+      [userId, gameId]
+    );
+
+    return true;
+  }
+
+  public static async unfollowGame(gameId: number, userId: number): Promise<boolean> {
+    await query('DELETE FROM game_follows WHERE user_id = $1 AND game_id = $2', [userId, gameId]);
+    return true;
+  }
+
+  public static async isFollowingGame(gameId: number, userId: number): Promise<boolean> {
+    const res = await query('SELECT id FROM game_follows WHERE user_id = $1 AND game_id = $2', [userId, gameId]);
+    return res.rows.length > 0;
+  }
+
+  public static async getFollowedGames(userId: number): Promise<Game[]> {
+    const sql = `
+      SELECT 
+        g.id,
+        g.title,
+        g.description,
+        g.platforms,
+        g.photos,
+        g.created_at,
+        g.updated_at,
+        COALESCE(ROUND(AVG(r.rating)::numeric, 1), 0)::float AS average_rating,
+        COUNT(r.id)::int AS reviews_count
+      FROM games g
+      INNER JOIN game_follows gf ON g.id = gf.game_id
+      LEFT JOIN reviews r ON g.id = r.game_id
+      WHERE gf.user_id = $1
+      GROUP BY g.id, gf.created_at
+      ORDER BY gf.created_at DESC
+    `;
+
+    const result = await query(sql, [userId]);
+    return result.rows.map((row) => ({
+      ...row,
+      average_rating: Number(row.average_rating),
+      reviews_count: Number(row.reviews_count)
+    }));
+  }
 }

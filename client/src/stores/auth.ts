@@ -121,6 +121,66 @@ export const useAuthStore = defineStore('auth', () => {
     clearAuth();
   };
 
+  const fetchBannedUsers = async (searchQuery: string = ''): Promise<UserProfile[]> => {
+    try {
+      const url = new URL(`${apiBaseUrl}/api/v1/users/banned`);
+      if (searchQuery.trim()) {
+        url.searchParams.set('q', searchQuery.trim());
+      }
+      const response = await fetch(url.toString(), {
+        headers: {
+          Authorization: `Bearer ${token.value}`
+        }
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to fetch banned users');
+      }
+      return data.data;
+    } catch (err: any) {
+      error.value = err.message || 'Failed to fetch banned users';
+      return [];
+    }
+  };
+
+  const banUser = async (userId: number): Promise<boolean> => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/v1/users/${userId}/ban`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token.value}`
+        }
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to ban user');
+      }
+      return true;
+    } catch (err: any) {
+      error.value = err.message || 'Failed to ban user';
+      throw err;
+    }
+  };
+
+  const unbanUser = async (userId: number): Promise<boolean> => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/v1/users/${userId}/unban`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token.value}`
+        }
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to unban user');
+      }
+      return true;
+    } catch (err: any) {
+      error.value = err.message || 'Failed to unban user';
+      throw err;
+    }
+  };
+
   return {
     user,
     token,
@@ -132,6 +192,9 @@ export const useAuthStore = defineStore('auth', () => {
     register,
     logout,
     setAuth,
-    clearAuth
+    clearAuth,
+    fetchBannedUsers,
+    banUser,
+    unbanUser
   };
 });

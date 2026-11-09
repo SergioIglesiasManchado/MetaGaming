@@ -9,12 +9,16 @@ export const initDb = async (): Promise<void> => {
       email VARCHAR(255) UNIQUE NOT NULL,
       password_hash VARCHAR(255) NOT NULL,
       role VARCHAR(20) DEFAULT 'user' NOT NULL,
+      is_banned BOOLEAN DEFAULT FALSE NOT NULL,
       created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
       updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
     );
 
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE NOT NULL;
+
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+    CREATE INDEX IF NOT EXISTS idx_users_is_banned ON users(is_banned);
 
     CREATE TABLE IF NOT EXISTS games (
       id SERIAL PRIMARY KEY,
@@ -41,6 +45,17 @@ export const initDb = async (): Promise<void> => {
 
     CREATE INDEX IF NOT EXISTS idx_reviews_game_id ON reviews(game_id);
     CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews(user_id);
+
+    CREATE TABLE IF NOT EXISTS game_follows (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      game_id INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+      CONSTRAINT unique_user_game_follow UNIQUE (user_id, game_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_game_follows_user_id ON game_follows(user_id);
+    CREATE INDEX IF NOT EXISTS idx_game_follows_game_id ON game_follows(game_id);
   `;
 
   await query(createUsersTableQuery);

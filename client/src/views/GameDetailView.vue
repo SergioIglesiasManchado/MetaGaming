@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useGamesStore } from '../stores/games';
 import { useAuthStore } from '../stores/auth';
@@ -14,8 +14,26 @@ const gameId = computed(() => parseInt(route.params.id as string, 10));
 const reviewRating = ref<number>(8.0);
 const reviewComment = ref<string>('');
 const isSubmittingReview = ref(false);
+const isTogglingFollow = ref(false);
 const reviewSuccess = ref<string | null>(null);
 const reviewError = ref<string | null>(null);
+
+const userExistingReview = computed(() => {
+  if (!authStore.user) return null;
+  return gamesStore.currentReviews.find((r) => r.user_id === authStore.user?.id) || null;
+});
+
+// Watch for existing review to prefill form
+watch(
+  userExistingReview,
+  (existing) => {
+    if (existing) {
+      reviewRating.value = existing.rating;
+      reviewComment.value = existing.comment;
+    }
+  },
+  { immediate: true }
+);
 
 onMounted(async () => {
   if (isNaN(gameId.value)) {
@@ -24,7 +42,28 @@ onMounted(async () => {
   }
   await gamesStore.fetchGameById(gameId.value);
   await gamesStore.fetchReviews(gameId.value);
+  if (authStore.isAuthenticated) {
+    await gamesStore.checkFollowStatus(gameId.value);
+  }
 });
+
+const handleToggleFollow = async () => {
+  if (!authStore.isAuthenticated) {
+    router.push('/login');
+    return;
+  }
+
+  isTogglingFollow.value = true;
+  try {
+    if (gamesStore.isFollowingCurrentGame) {
+      await gamesStore.unfollowGame(gameId.value);
+    } else {
+      await gamesStore.followGame(gameId.value);
+    }
+  } finally {
+    isTogglingFollow.value = false;
+  }
+};
 
 const handleSubmitReview = async () => {
   reviewSuccess.value = null;
@@ -47,8 +86,9 @@ const handleSubmitReview = async () => {
       comment: reviewComment.value.trim()
     });
 
-    reviewSuccess.value = 'Your review has been posted and the overall score has been updated!';
-    reviewComment.value = '';
+    reviewSuccess.value = userExistingReview.value
+      ? 'Your review has been updated and the overall score recalculated!'
+      : 'Your review has been posted and the overall score has been updated!';
   } catch (err: any) {
     reviewError.value = err.message || 'Error submitting review';
   } finally {
@@ -84,7 +124,18 @@ const formatDate = (isoStr: string) => {
       <!-- Game Header & Overview -->
       <div class="game-header-card card">
         <div class="game-meta">
-          <h1 class="game-title">{{ gamesStore.currentGame.title }}</h1>
+          <div class="title-follow-bar">
+            <h1 class="game-title">{{ gamesStore.currentGame.title }}</h1>
+            <button
+              class="btn-follow"
+              :class="{ following: gamesStore.isFollowingCurrentGame }"
+              :disabled="isTogglingFollow"
+              @click="handleToggleFollow"
+            >
+              <span class="icon">{{ gamesStore.isFollowingCurrentGame ? '★' : '☆' }}</span>
+              <span>{{ gamesStore.isFollowingCurrentGame ? 'Following' : 'Follow Game' }}</span>
+            </button>
+          </div>
 
           <div class="platforms-list">
             <span v-for="plat in gamesStore.currentGame.platforms" :key="plat" class="platform-chip">
@@ -130,13 +181,22 @@ const formatDate = (isoStr: string) => {
 
       <!-- Reviews Section -->
       <div class="reviews-layout">
-        <!-- Post Review Form -->
+        <!-- Post / Update Review Form -->
         <div class="post-review-box card">
-          <h3>Leave a Review</h3>
-          <p class="section-subtext">Share your rating and thoughts. Every review directly updates the overall game score.</p>
+          <div class="review-box-header">
+            <h3>{{ userExistingReview ? 'Update Your Review' : 'Leave a Review' }}</h3>
+            <span v-if="userExistingReview" class="existing-pill">Review Already Submitted</span>
+          </div>
+          <p class="section-subtext">
+            {{
+              userExistingReview
+                ? 'Modify your rating or feedback. The overall game score will instantly recalculate.'
+                : 'Share your rating and thoughts. Every review directly updates the overall game score.'
+            }}
+          </p>
 
           <div v-if="!authStore.isAuthenticated" class="auth-prompt">
-            <p>You must be signed in to post a review.</p>
+            <p>You must be signed in to post or update a review.</p>
             <router-link to="/login" class="btn btn-primary">Sign In to Review</router-link>
           </div>
 
@@ -182,7 +242,7 @@ const formatDate = (isoStr: string) => {
             </div>
 
             <button type="submit" class="btn btn-accent" :disabled="isSubmittingReview">
-              {{ isSubmittingReview ? 'Submitting...' : 'Post Public Review' }}
+              {{ isSubmittingReview ? 'Saving...' : userExistingReview ? 'Update Review' : 'Post Public Review' }}
             </button>
           </form>
         </div>
@@ -200,12 +260,20 @@ const formatDate = (isoStr: string) => {
           </div>
 
           <div v-else class="reviews-feed">
-            <div v-for="rev in gamesStore.currentReviews" :key="rev.id" class="review-card">
+            <div
+              v-for="rev in gamesStore.currentReviews"
+              :key="rev.id"
+              class="review-card"
+              :class="{ 'user-own-review': authStore.user && rev.user_id === authStore.user.id }"
+            >
               <div class="review-top">
                 <div class="user-meta">
                   <span class="user-avatar">{{ rev.username.charAt(0).toUpperCase() }}</span>
                   <div class="user-info">
-                    <span class="reviewer-name">{{ rev.username }}</span>
+                    <span class="reviewer-name">
+                      {{ rev.username }}
+                      <span v-if="authStore.user && rev.user_id === authStore.user.id" class="you-tag">You</span>
+                    </span>
                     <span class="review-date">{{ formatDate(rev.created_at) }}</span>
                   </div>
                 </div>
@@ -229,11 +297,13 @@ const formatDate = (isoStr: string) => {
 <style scoped>
 .detail-container {
   max-width: 1100px;
+  width: 100%;
   margin: 0 auto;
-  padding: 2.5rem 1.5rem;
+  padding: 2rem 1rem;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.75rem;
+  box-sizing: border-box;
 }
 
 .back-link {
@@ -243,6 +313,7 @@ const formatDate = (isoStr: string) => {
   display: inline-flex;
   align-items: center;
   transition: color 0.2s;
+  font-size: 0.95rem;
 }
 
 .back-link:hover {
@@ -252,7 +323,7 @@ const formatDate = (isoStr: string) => {
 .content-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.75rem;
 }
 
 .card {
@@ -273,14 +344,54 @@ const formatDate = (isoStr: string) => {
 
 .game-meta {
   flex: 2;
-  min-width: 300px;
+  min-width: 280px;
+}
+
+.title-follow-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
 }
 
 .game-title {
-  font-size: 2.3rem;
+  font-size: 2.2rem;
   font-weight: 800;
-  margin-bottom: 0.75rem;
   color: #f8fafc;
+  line-height: 1.2;
+}
+
+.btn-follow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  background: rgba(139, 92, 246, 0.15);
+  color: #c084fc;
+  transition: all 0.2s ease;
+  min-height: 40px;
+}
+
+.btn-follow:hover {
+  background: rgba(139, 92, 246, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-follow.following {
+  background: rgba(251, 191, 36, 0.2);
+  border-color: rgba(251, 191, 36, 0.5);
+  color: #fbbf24;
+}
+
+.btn-follow .icon {
+  font-size: 1.1rem;
 }
 
 .platforms-list {
@@ -373,7 +484,7 @@ const formatDate = (isoStr: string) => {
 
 .photos-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 1rem;
 }
 
@@ -400,6 +511,23 @@ const formatDate = (isoStr: string) => {
   .reviews-layout {
     grid-template-columns: 1fr;
   }
+}
+
+.review-box-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.existing-pill {
+  font-size: 0.75rem;
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 700;
 }
 
 .section-subtext {
@@ -536,6 +664,11 @@ const formatDate = (isoStr: string) => {
   gap: 0.75rem;
 }
 
+.review-card.user-own-review {
+  border-left: 3px solid #8b5cf6;
+  background: rgba(139, 92, 246, 0.08);
+}
+
 .review-top {
   display: flex;
   justify-content: space-between;
@@ -570,6 +703,17 @@ const formatDate = (isoStr: string) => {
   font-weight: 600;
   color: #f1f5f9;
   font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.you-tag {
+  font-size: 0.7rem;
+  background: rgba(139, 92, 246, 0.25);
+  color: #c084fc;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
 }
 
 .review-date {
@@ -619,6 +763,7 @@ const formatDate = (isoStr: string) => {
   border: none;
   transition: all 0.2s ease;
   text-decoration: none;
+  min-height: 44px;
 }
 
 .btn-primary {
@@ -661,5 +806,14 @@ const formatDate = (isoStr: string) => {
   background: rgba(239, 68, 68, 0.15);
   border: 1px solid rgba(239, 68, 68, 0.3);
   color: #f87171;
+}
+
+@media (max-width: 640px) {
+  .game-title {
+    font-size: 1.75rem;
+  }
+  .score-card {
+    width: 100%;
+  }
 }
 </style>

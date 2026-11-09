@@ -123,4 +123,106 @@ export class GameController {
       next(error);
     }
   }
+
+  public static async uploadImage(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const file = (req as any).file;
+      if (!file) {
+        res.status(400).json({
+          status: 'fail',
+          message: 'No image file uploaded'
+        });
+        return;
+      }
+
+      const fileUrl = `/uploads/${file.filename}`;
+      res.status(201).json({
+        status: 'success',
+        message: 'Image uploaded successfully',
+        data: {
+          url: fileUrl,
+          filename: file.filename,
+          size: file.size
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async followGame(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const gameId = parseInt(req.params.id, 10);
+      if (isNaN(gameId)) {
+        res.status(400).json({ status: 'fail', message: 'Invalid game ID' });
+        return;
+      }
+
+      const userId = (req as any).user?.id;
+      await GameService.followGame(gameId, userId);
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Game followed successfully',
+        data: { is_following: true }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async unfollowGame(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const gameId = parseInt(req.params.id, 10);
+      if (isNaN(gameId)) {
+        res.status(400).json({ status: 'fail', message: 'Invalid game ID' });
+        return;
+      }
+
+      const userId = (req as any).user?.id;
+      await GameService.unfollowGame(gameId, userId);
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Game unfollowed successfully',
+        data: { is_following: false }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async getFollowStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const gameId = parseInt(req.params.id, 10);
+      if (isNaN(gameId)) {
+        res.status(400).json({ status: 'fail', message: 'Invalid game ID' });
+        return;
+      }
+
+      const userId = (req as any).user?.id;
+      const isFollowing = await GameService.isFollowingGame(gameId, userId);
+
+      res.status(200).json({
+        status: 'success',
+        data: { is_following: isFollowing }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async getFollowedGames(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = (req as any).user?.id;
+      const games = await GameService.getFollowedGames(userId);
+
+      res.status(200).json({
+        status: 'success',
+        data: { games }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

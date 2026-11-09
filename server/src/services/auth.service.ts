@@ -8,6 +8,7 @@ export interface UserProfile {
   email: string;
   role: 'user' | 'admin';
   is_admin: boolean;
+  is_banned?: boolean;
   created_at: string;
 }
 
@@ -34,6 +35,7 @@ interface UserDbRow {
   email: string;
   password_hash: string;
   role: 'user' | 'admin';
+  is_banned: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -141,7 +143,7 @@ export class AuthService {
 
     // Search user by username or email
     const result = await query<UserDbRow>(
-      `SELECT id, username, email, password_hash, role, created_at
+      `SELECT id, username, email, password_hash, role, is_banned, created_at
        FROM users
        WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($1)`,
       [usernameOrEmail.trim()]
@@ -151,6 +153,12 @@ export class AuthService {
     if (!user) {
       const err = new Error('Invalid credentials');
       (err as any).statusCode = 401;
+      throw err;
+    }
+
+    if (user.is_banned) {
+      const err = new Error('This account has been banned by an administrator');
+      (err as any).statusCode = 403;
       throw err;
     }
 

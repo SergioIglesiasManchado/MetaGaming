@@ -4,6 +4,7 @@ export interface UserProfile {
   email: string;
   role: 'user' | 'admin';
   is_admin: boolean;
+  is_banned?: boolean;
   created_at: string;
 }
 

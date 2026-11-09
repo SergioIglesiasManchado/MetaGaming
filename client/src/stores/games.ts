@@ -7,6 +7,8 @@ export const useGamesStore = defineStore('games', () => {
   const games = ref<Game[]>([]);
   const currentGame = ref<Game | null>(null);
   const currentReviews = ref<Review[]>([]);
+  const followedGames = ref<Game[]>([]);
+  const isFollowingCurrentGame = ref<boolean>(false);
   const loading = ref<boolean>(false);
   const error = ref<string | null>(null);
 
@@ -152,16 +154,131 @@ export const useGamesStore = defineStore('games', () => {
     }
   };
 
+  const uploadGameImage = async (file: File): Promise<string> => {
+    const authStore = useAuthStore();
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const res = await fetch(`${apiBaseUrl}/api/v1/games/upload-image`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${authStore.token}`
+      },
+      body: formData
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || 'Failed to upload image');
+    }
+
+    // Convert relative URL to full backend URL if necessary
+    const url = data.data.url;
+    return url.startsWith('http') ? url : `${apiBaseUrl}${url}`;
+  };
+
+  const checkFollowStatus = async (gameId: number): Promise<boolean> => {
+    const authStore = useAuthStore();
+    if (!authStore.isAuthenticated) {
+      isFollowingCurrentGame.value = false;
+      return false;
+    }
+
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/v1/games/${gameId}/follow-status`, {
+        headers: {
+          Authorization: `Bearer ${authStore.token}`
+        }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        isFollowingCurrentGame.value = data.data.is_following;
+      }
+      return isFollowingCurrentGame.value;
+    } catch {
+      isFollowingCurrentGame.value = false;
+      return false;
+    }
+  };
+
+  const followGame = async (gameId: number): Promise<boolean> => {
+    const authStore = useAuthStore();
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/v1/games/${gameId}/follow`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${authStore.token}`
+        }
+      });
+      if (res.ok) {
+        isFollowingCurrentGame.value = true;
+        await fetchFollowedGames();
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
+  const unfollowGame = async (gameId: number): Promise<boolean> => {
+    const authStore = useAuthStore();
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/v1/games/${gameId}/follow`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${authStore.token}`
+        }
+      });
+      if (res.ok) {
+        isFollowingCurrentGame.value = false;
+        await fetchFollowedGames();
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
+  const fetchFollowedGames = async (): Promise<Game[]> => {
+    const authStore = useAuthStore();
+    if (!authStore.isAuthenticated) return [];
+
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/v1/games/followed`, {
+        headers: {
+          Authorization: `Bearer ${authStore.token}`
+        }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        followedGames.value = data.data.games;
+        return followedGames.value;
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  };
+
   return {
     games,
     currentGame,
     currentReviews,
+    followedGames,
+    isFollowingCurrentGame,
     loading,
     error,
     fetchGames,
     fetchGameById,
     createGame,
     fetchReviews,
-    submitReview
+    submitReview,
+    uploadGameImage,
+    checkFollowStatus,
+    followGame,
+    unfollowGame,
+    fetchFollowedGames
   };
 });
