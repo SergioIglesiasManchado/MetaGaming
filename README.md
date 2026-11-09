@@ -23,6 +23,10 @@
    - **User Collections**: Curate custom lists (e.g., *"Top Co-op Games"*, *"Indie Gems"*) and share them with friends or the community.
    - **Official Collections**: Themed lists curated by platform administrators.
 
+5. **Game Reviews & Scoring System (0–10 Scale)**
+   - Users can write and publish detailed game reviews.
+   - Each review contributes an individual rating from 0 to 10 that dynamically shapes the game's overall community score.
+
 ---
 
 ## 🛠️ Tech Stack

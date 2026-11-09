@@ -12,6 +12,7 @@ Key capabilities include:
 - **Social & Messaging**: Direct 1-to-1 chats and group conversations with friends.
 - **Game Communities**: Subreddit-style dedicated hubs per game with posts, screenshots, guides, questions, reactions, and threaded comments.
 - **Game Collections**: User-curated custom game lists (shareable publicly or with friends) and admin-curated official thematic collections.
+- **Game Reviews & Rating System**: Community reviews with individual ratings on a 0–10 scale that compute overall game scores.
 
 ---
 
