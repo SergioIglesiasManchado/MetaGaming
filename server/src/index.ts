@@ -1,3 +1,4 @@
+import express from 'express';
 import dotenv from 'dotenv';
 import { createApp } from './app.js';
 import { initDb } from './db/init.js';
@@ -31,12 +32,6 @@ const startServer = async () => {
 
 if (!process.env.VERCEL) {
   startServer();
-}
-
-// Support both ESM and CJS consumers on Vercel
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = app;
-  module.exports.default = app;
 }
 
 export default app;
