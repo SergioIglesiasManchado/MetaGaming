@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useGamesStore } from '../stores/games';
 import type { UserProfile } from '../types/auth';
-import { apiBaseUrl, getApiUrl } from '../config/api';
+import { apiBaseUrl, getApiUrl, parseJsonResponse } from '../config/api';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -51,7 +51,7 @@ const fetchUsers = async () => {
       headers: { Authorization: `Bearer ${authStore.token}` },
     });
 
-    const data = await response.json();
+    const data = await parseJsonResponse(response);
     if (!response.ok) throw new Error(data.message || 'Failed to search users');
     usersList.value = data.data;
   } catch (err) {
@@ -77,7 +77,7 @@ const setRole = async (targetUserId: number, newRole: 'user' | 'admin') => {
       body: JSON.stringify({ role: newRole }),
     });
 
-    const data = await response.json();
+    const data = await parseJsonResponse(response);
     if (!response.ok) throw new Error(data.message || 'Failed to update user role');
 
     const updated = data.data as UserProfile;

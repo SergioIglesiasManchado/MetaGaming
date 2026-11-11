@@ -80,7 +80,10 @@ export const getDbConfig = () => {
 
     return {
       connectionString,
-      ssl: useSsl ? { rejectUnauthorized: false } : undefined
+      ssl: useSsl ? { rejectUnauthorized: false } : undefined,
+      connectionTimeoutMillis: 5000,
+      idleTimeoutMillis: 10000,
+      max: 5
     };
   }
 
@@ -101,11 +104,19 @@ export const getDbConfig = () => {
     password: process.env.POSTGRES_PASSWORD || 'postgres',
     host,
     port: Number(process.env.POSTGRES_PORT) || 5432,
-    database: process.env.POSTGRES_DB || 'metagaming'
+    database: process.env.POSTGRES_DB || 'metagaming',
+    connectionTimeoutMillis: 5000,
+    idleTimeoutMillis: 10000,
+    max: 5
   };
 };
 
 export const pool = new Pool(getDbConfig());
+
+// Handle idle connection errors without crashing process
+pool.on('error', (err) => {
+  console.error('⚠️ Unexpected idle client database error:', err.message);
+});
 
 /**
  * Execute parameterized query safely using the connection pool

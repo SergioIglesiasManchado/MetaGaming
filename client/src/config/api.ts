@@ -22,3 +22,16 @@ export const getApiUrl = (endpoint: string): URL => {
   const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   return new URL(`${apiBaseUrl}${path}`, base);
 };
+
+export const parseJsonResponse = async <T = any>(res: Response): Promise<T> => {
+  const text = await res.text();
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    if (!res.ok) {
+      throw new Error(`Server error (${res.status}): ${text.trim() || res.statusText}`);
+    }
+    throw new Error('Invalid JSON response received from server');
+  }
+};
+
