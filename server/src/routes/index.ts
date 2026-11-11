@@ -9,6 +9,8 @@ import communityRouter from './community.routes.js';
 export const rootRouter = Router();
 
 rootRouter.use('/health', healthRouter);
+rootRouter.use('/api/health', healthRouter);
+rootRouter.use('/api/v1/health', healthRouter);
 rootRouter.use('/api/v1', apiRouter);
 rootRouter.use('/api/v1/auth', authRouter);
 rootRouter.use('/api/v1/users', userRouter);

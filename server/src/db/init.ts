@@ -126,16 +126,4 @@ export const initDb = async (): Promise<void> => {
   }
 };
 
-// Allow direct execution via CLI (e.g., npm run db:init)
-if (process.argv[1]?.includes('init.js') || process.argv[1]?.includes('init.ts')) {
-  initDb()
-    .then(() => {
-      console.log('✅ Database schema and admin initialized successfully');
-      process.exit(0);
-    })
-    .catch((err) => {
-      console.error('❌ Database initialization failed:', err);
-      process.exit(1);
-    });
-}
 
