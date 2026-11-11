@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { Community, CommunityPost, CommunityComment } from '../types/community';
 import { useAuthStore } from './auth';
-import { apiBaseUrl } from '../config/api';
+import { apiBaseUrl, parseJsonResponse } from '../config/api';
 
 export const useCommunityStore = defineStore('community', () => {
   const currentCommunity = ref<Community | null>(null);
@@ -18,7 +18,7 @@ export const useCommunityStore = defineStore('community', () => {
 
     try {
       const res = await fetch(`${apiBaseUrl}/api/v1/communities/by-game/${gameId}`);
-      const data = await res.json();
+      const data = await parseJsonResponse(res);
 
       if (!res.ok) {
         throw new Error(data.message || 'Failed to fetch community');
@@ -40,7 +40,7 @@ export const useCommunityStore = defineStore('community', () => {
 
     try {
       const res = await fetch(`${apiBaseUrl}/api/v1/communities/${communityId}/posts`);
-      const data = await res.json();
+      const data = await parseJsonResponse(res);
 
       if (!res.ok) {
         throw new Error(data.message || 'Failed to fetch posts');
@@ -79,7 +79,7 @@ export const useCommunityStore = defineStore('community', () => {
         body: JSON.stringify({ title, content })
       });
 
-      const data = await res.json();
+      const data = await parseJsonResponse(res);
       if (!res.ok) {
         throw new Error(data.message || 'Failed to create post');
       }
@@ -104,7 +104,7 @@ export const useCommunityStore = defineStore('community', () => {
 
     try {
       const res = await fetch(`${apiBaseUrl}/api/v1/communities/posts/${postId}`);
-      const data = await res.json();
+      const data = await parseJsonResponse(res);
 
       if (!res.ok) {
         throw new Error(data.message || 'Failed to fetch discussion');
@@ -147,7 +147,7 @@ export const useCommunityStore = defineStore('community', () => {
         })
       });
 
-      const data = await res.json();
+      const data = await parseJsonResponse(res);
       if (!res.ok) {
         throw new Error(data.message || 'Failed to post comment');
       }

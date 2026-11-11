@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { Game, Review, CreateGamePayload, CreateReviewPayload } from '../types/game';
 import { useAuthStore } from './auth';
-import { apiBaseUrl, getApiUrl } from '../config/api';
+import { apiBaseUrl, getApiUrl, parseJsonResponse } from '../config/api';
 
 export const useGamesStore = defineStore('games', () => {
   const games = ref<Game[]>([]);
@@ -24,7 +24,7 @@ export const useGamesStore = defineStore('games', () => {
       }
 
       const res = await fetch(url.toString());
-      const data = await res.json();
+      const data = await parseJsonResponse(res);
 
       if (!res.ok) {
         throw new Error(data.message || 'Failed to fetch games');
@@ -46,7 +46,7 @@ export const useGamesStore = defineStore('games', () => {
 
     try {
       const res = await fetch(`${apiBaseUrl}/api/v1/games/${id}`);
-      const data = await res.json();
+      const data = await parseJsonResponse(res);
 
       if (!res.ok) {
         throw new Error(data.message || 'Failed to fetch game details');
@@ -77,7 +77,7 @@ export const useGamesStore = defineStore('games', () => {
         body: JSON.stringify(payload)
       });
 
-      const data = await res.json();
+      const data = await parseJsonResponse(res);
 
       if (!res.ok) {
         throw new Error(data.message || 'Failed to introduce new game');
@@ -97,7 +97,7 @@ export const useGamesStore = defineStore('games', () => {
   const fetchReviews = async (gameId: number): Promise<Review[]> => {
     try {
       const res = await fetch(`${apiBaseUrl}/api/v1/games/${gameId}/reviews`);
-      const data = await res.json();
+      const data = await parseJsonResponse(res);
 
       if (!res.ok) {
         throw new Error(data.message || 'Failed to fetch reviews');
@@ -129,7 +129,7 @@ export const useGamesStore = defineStore('games', () => {
         body: JSON.stringify(payload)
       });
 
-      const data = await res.json();
+      const data = await parseJsonResponse(res);
 
       if (!res.ok) {
         throw new Error(data.message || 'Failed to post review');
@@ -166,7 +166,7 @@ export const useGamesStore = defineStore('games', () => {
       body: formData
     });
 
-    const data = await res.json();
+    const data = await parseJsonResponse(res);
     if (!res.ok) {
       throw new Error(data.message || 'Failed to upload image');
     }
@@ -189,7 +189,7 @@ export const useGamesStore = defineStore('games', () => {
           Authorization: `Bearer ${authStore.token}`
         }
       });
-      const data = await res.json();
+      const data = await parseJsonResponse(res);
       if (res.ok) {
         isFollowingCurrentGame.value = data.data.is_following;
       }
@@ -250,7 +250,7 @@ export const useGamesStore = defineStore('games', () => {
           Authorization: `Bearer ${authStore.token}`
         }
       });
-      const data = await res.json();
+      const data = await parseJsonResponse(res);
       if (res.ok) {
         followedGames.value = data.data.games;
         return followedGames.value;

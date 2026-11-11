@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { UserProfile, AuthResponse } from '../types/auth';
-import { apiBaseUrl, getApiUrl } from '../config/api';
+import { apiBaseUrl, getApiUrl, parseJsonResponse } from '../config/api';
 
 const getStorageItem = (key: string): string | null => {
   try {
@@ -31,18 +31,6 @@ const removeStorageItem = (key: string): void => {
     }
   } catch {
     // Ignore in non-browser or disabled environments
-  }
-};
-
-const parseJsonResponse = async (res: Response) => {
-  const text = await res.text();
-  try {
-    return JSON.parse(text);
-  } catch {
-    if (!res.ok) {
-      throw new Error(`Server error (${res.status}): ${text.trim() || res.statusText}`);
-    }
-    throw new Error('Invalid JSON response received from server');
   }
 };
 
@@ -143,7 +131,7 @@ export const useAuthStore = defineStore('auth', () => {
           Authorization: `Bearer ${token.value}`
         }
       });
-      const data = await response.json();
+      const data = await parseJsonResponse(response);
       if (!response.ok) {
         throw new Error(data.message || 'Failed to fetch banned users');
       }
