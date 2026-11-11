@@ -31,9 +31,6 @@ const startServer = async () => {
 
 if (!process.env.VERCEL) {
   startServer();
-} else {
-  // Trigger background initialization on Vercel cold start
-  ensureDbInitialized();
 }
 
 // Support both ESM and CJS consumers on Vercel
