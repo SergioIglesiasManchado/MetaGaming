@@ -1,43 +1,64 @@
-import { Request, Response, NextFunction } from 'express';
-import { GameService } from '../services/game.service.js';
+import { Request, Response, NextFunction } from "express";
+import { GameService } from "../services/game.service.js";
+import path from "path";
+import fs from "fs/promises";
+import { put } from "@vercel/blob";
 
 export class GameController {
-  public static async createGame(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public static async createGame(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     try {
       const { title, description, platforms, photos } = req.body;
-      const game = await GameService.createGame({ title, description, platforms, photos });
+      const game = await GameService.createGame({
+        title,
+        description,
+        platforms,
+        photos,
+      });
 
       res.status(201).json({
-        status: 'success',
-        message: 'Game created successfully',
-        data: { game }
+        status: "success",
+        message: "Game created successfully",
+        data: { game },
       });
     } catch (error) {
       next(error);
     }
   }
 
-  public static async searchGames(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public static async searchGames(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     try {
-      const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+      const search =
+        typeof req.query.search === "string" ? req.query.search : undefined;
       const games = await GameService.searchGames(search);
 
       res.status(200).json({
-        status: 'success',
-        data: { games }
+        status: "success",
+        data: { games },
       });
     } catch (error) {
       next(error);
     }
   }
 
-  public static async getGameById(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public static async getGameById(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     try {
       const gameId = parseInt(req.params.id, 10);
       if (isNaN(gameId)) {
         res.status(400).json({
-          status: 'fail',
-          message: 'Invalid game ID'
+          status: "fail",
+          message: "Invalid game ID",
         });
         return;
       }
@@ -45,28 +66,32 @@ export class GameController {
       const game = await GameService.getGameById(gameId);
       if (!game) {
         res.status(404).json({
-          status: 'fail',
-          message: 'Game not found'
+          status: "fail",
+          message: "Game not found",
         });
         return;
       }
 
       res.status(200).json({
-        status: 'success',
-        data: { game }
+        status: "success",
+        data: { game },
       });
     } catch (error) {
       next(error);
     }
   }
 
-  public static async getGameReviews(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public static async getGameReviews(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     try {
       const gameId = parseInt(req.params.id, 10);
       if (isNaN(gameId)) {
         res.status(400).json({
-          status: 'fail',
-          message: 'Invalid game ID'
+          status: "fail",
+          message: "Invalid game ID",
         });
         return;
       }
@@ -74,8 +99,8 @@ export class GameController {
       const reviews = await GameService.getGameReviews(gameId);
 
       res.status(200).json({
-        status: 'success',
-        data: { reviews }
+        status: "success",
+        data: { reviews },
       });
     } catch (error) {
       next(error);
@@ -85,14 +110,14 @@ export class GameController {
   public static async createOrUpdateReview(
     req: Request,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ): Promise<void> {
     try {
       const gameId = parseInt(req.params.id, 10);
       if (isNaN(gameId)) {
         res.status(400).json({
-          status: 'fail',
-          message: 'Invalid game ID'
+          status: "fail",
+          message: "Invalid game ID",
         });
         return;
       }
@@ -100,61 +125,82 @@ export class GameController {
       const userId = (req as any).user?.id;
       if (!userId) {
         res.status(401).json({
-          status: 'fail',
-          message: 'Authentication required'
+          status: "fail",
+          message: "Authentication required",
         });
         return;
       }
 
       const { rating, comment } = req.body;
-      const parsedRating = typeof rating === 'string' ? parseFloat(rating) : rating;
+      const parsedRating =
+        typeof rating === "string" ? parseFloat(rating) : rating;
 
       const result = await GameService.createOrUpdateReview(gameId, userId, {
         rating: parsedRating,
-        comment
+        comment,
       });
 
       res.status(201).json({
-        status: 'success',
-        message: 'Review submitted successfully',
-        data: result
+        status: "success",
+        message: "Review submitted successfully",
+        data: result,
       });
     } catch (error) {
       next(error);
     }
   }
 
-  public static async uploadImage(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public static async uploadImage(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     try {
-      const file = (req as any).file;
+      const file = (req as any).file as Express.Multer.File | undefined;
       if (!file) {
-        res.status(400).json({
-          status: 'fail',
-          message: 'No image file uploaded'
-        });
+        res
+          .status(400)
+          .json({ status: "fail", message: "No image file uploaded" });
         return;
       }
 
-      const fileUrl = `/uploads/${file.filename}`;
+      const ext = path.extname(file.originalname).toLowerCase();
+      const filename = `game-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+      let url: string;
+
+      if (process.env.BLOB_READ_WRITE_TOKEN) {
+        // Production (Vercel): store in Vercel Blob
+        const blob = await put(`games/${filename}`, file.buffer, {
+          access: "public",
+          contentType: file.mimetype,
+        });
+        url = blob.url;
+      } else {
+        // Local development: write to ./uploads (served by express.static in app.ts)
+        const dir = path.resolve(process.cwd(), "uploads");
+        await fs.mkdir(dir, { recursive: true });
+        await fs.writeFile(path.join(dir, filename), file.buffer);
+        url = `/uploads/${filename}`;
+      }
+
       res.status(201).json({
-        status: 'success',
-        message: 'Image uploaded successfully',
-        data: {
-          url: fileUrl,
-          filename: file.filename,
-          size: file.size
-        }
+        status: "success",
+        message: "Image uploaded successfully",
+        data: { url, filename, size: file.size },
       });
     } catch (error) {
       next(error);
     }
   }
-
-  public static async followGame(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public static async followGame(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     try {
       const gameId = parseInt(req.params.id, 10);
       if (isNaN(gameId)) {
-        res.status(400).json({ status: 'fail', message: 'Invalid game ID' });
+        res.status(400).json({ status: "fail", message: "Invalid game ID" });
         return;
       }
 
@@ -162,20 +208,24 @@ export class GameController {
       await GameService.followGame(gameId, userId);
 
       res.status(200).json({
-        status: 'success',
-        message: 'Game followed successfully',
-        data: { is_following: true }
+        status: "success",
+        message: "Game followed successfully",
+        data: { is_following: true },
       });
     } catch (error) {
       next(error);
     }
   }
 
-  public static async unfollowGame(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public static async unfollowGame(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     try {
       const gameId = parseInt(req.params.id, 10);
       if (isNaN(gameId)) {
-        res.status(400).json({ status: 'fail', message: 'Invalid game ID' });
+        res.status(400).json({ status: "fail", message: "Invalid game ID" });
         return;
       }
 
@@ -183,20 +233,24 @@ export class GameController {
       await GameService.unfollowGame(gameId, userId);
 
       res.status(200).json({
-        status: 'success',
-        message: 'Game unfollowed successfully',
-        data: { is_following: false }
+        status: "success",
+        message: "Game unfollowed successfully",
+        data: { is_following: false },
       });
     } catch (error) {
       next(error);
     }
   }
 
-  public static async getFollowStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public static async getFollowStatus(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     try {
       const gameId = parseInt(req.params.id, 10);
       if (isNaN(gameId)) {
-        res.status(400).json({ status: 'fail', message: 'Invalid game ID' });
+        res.status(400).json({ status: "fail", message: "Invalid game ID" });
         return;
       }
 
@@ -204,22 +258,26 @@ export class GameController {
       const isFollowing = await GameService.isFollowingGame(gameId, userId);
 
       res.status(200).json({
-        status: 'success',
-        data: { is_following: isFollowing }
+        status: "success",
+        data: { is_following: isFollowing },
       });
     } catch (error) {
       next(error);
     }
   }
 
-  public static async getFollowedGames(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public static async getFollowedGames(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     try {
       const userId = (req as any).user?.id;
       const games = await GameService.getFollowedGames(userId);
 
       res.status(200).json({
-        status: 'success',
-        data: { games }
+        status: "success",
+        data: { games },
       });
     } catch (error) {
       next(error);
