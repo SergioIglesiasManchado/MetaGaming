@@ -135,6 +135,8 @@ that is not in the criteria.
 ### Next steps
 
 1. **Fix the Vercel deployment.** Review the service names, public routes (`/api/*` to the server) and bindings in `vercel.json`, and make the client URLs agree with them.
+   vercel deployment was fixed, although multiple changes were needed, including changes to the vercel config, to the routing and the database creation
+
 2. **Close the test gaps.** Add tests for following/unfollowing games, banning/unbanning users (including the 403 on banned accounts and the "cannot ban yourself or another admin" guards), the image upload limits (5 MB; JPEG/PNG/WEBP/GIF) and the "Update review" form.
 3. **Share your games.** Let users select the games they have played, with hours, and show them on their profile.
 4. **Direct chats and groups** with friends.
