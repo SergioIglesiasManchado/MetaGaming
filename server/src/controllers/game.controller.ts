@@ -168,7 +168,7 @@ export class GameController {
       const filename = `game-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
       let url: string;
 
-      if (process.env.BLOB_READ_WRITE_TOKEN) {
+      if (process.env.VERCEL || process.env.BLOB_READ_WRITE_TOKEN) {
         // Production (Vercel): store in Vercel Blob
         const blob = await put(`games/${filename}`, file.buffer, {
           access: "public",
